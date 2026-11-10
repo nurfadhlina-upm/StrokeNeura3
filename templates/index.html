@@ -1,0 +1,126 @@
+{% extends "base.html" %}
+{% block title %}Dashboard — StrokeCare{% endblock %}
+{% block content %}
+
+<div class="page-header">
+  <div>
+    <h1 class="page-title">Patient Dashboard</h1>
+    <p class="page-sub">Stroke patient registry with AI-powered insights</p>
+  </div>
+  <a href="/patient/new" class="btn btn-primary"><i data-lucide="plus"></i> Register Patient</a>
+</div>
+
+<!-- Stats cards -->
+<div class="stats-grid" id="stats-grid">
+  <div class="stat-card stat-blue">
+    <div class="stat-icon"><i data-lucide="users"></i></div>
+    <div class="stat-value" id="stat-total">—</div>
+    <div class="stat-label">Total Patients</div>
+  </div>
+  <div class="stat-card stat-indigo">
+    <div class="stat-icon"><i data-lucide="activity"></i></div>
+    <div class="stat-value" id="stat-ischemic">—</div>
+    <div class="stat-label">Ischemic Stroke</div>
+  </div>
+  <div class="stat-card stat-red">
+    <div class="stat-icon"><i data-lucide="droplets"></i></div>
+    <div class="stat-value" id="stat-haemo">—</div>
+    <div class="stat-label">Haemorrhagic</div>
+  </div>
+  <div class="stat-card stat-amber">
+    <div class="stat-icon"><i data-lucide="timer"></i></div>
+    <div class="stat-value" id="stat-tia">—</div>
+    <div class="stat-label">TIA</div>
+  </div>
+  <div class="stat-card stat-purple">
+    <div class="stat-icon"><i data-lucide="clipboard-list"></i></div>
+    <div class="stat-value" id="stat-pending">—</div>
+    <div class="stat-label">Pending Interventions</div>
+  </div>
+</div>
+
+<!-- Patient list -->
+<div class="card">
+  <div class="card-header">
+    <h2 class="card-title"><i data-lucide="list"></i> Registered Patients</h2>
+    <input type="text" id="search-input" class="search-input" placeholder="Search by name…" oninput="filterPatients()"/>
+  </div>
+
+  {% if patients %}
+  <div class="table-wrapper">
+    <table class="data-table" id="patient-table">
+      <thead>
+        <tr>
+          <th>#</th>
+          <th>Name</th>
+          <th>Age / Gender</th>
+          <th>Stroke Type</th>
+          <th>NIHSS</th>
+          <th>Admitted</th>
+          <th>Actions</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for p in patients %}
+        <tr class="patient-row">
+          <td><span class="badge badge-grey">{{ p.id }}</span></td>
+          <td>
+            <a href="/patient/{{ p.id }}" class="patient-link">{{ p.name }}</a>
+          </td>
+          <td>{{ p.age }} / {{ p.gender }}</td>
+          <td>
+            {% if p.stroke_type %}
+              <span class="badge {% if p.stroke_type=='Ischemic' %}badge-blue{% elif 'morrhagic' in p.stroke_type %}badge-red{% elif p.stroke_type=='TIA' %}badge-amber{% else %}badge-grey{% endif %}">
+                {{ p.stroke_type }}
+              </span>
+            {% else %}<span class="text-muted">Not recorded</span>{% endif %}
+          </td>
+          <td>
+            {% if p.nihss_score is not none %}
+              <span class="nihss-pill nihss-{% if p.nihss_score <= 4 %}low{% elif p.nihss_score <= 15 %}mod{% elif p.nihss_score <= 20 %}high{% else %}severe{% endif %}">
+                {{ p.nihss_score }}
+              </span>
+            {% else %}—{% endif %}
+          </td>
+          <td class="text-muted">{{ p.admission_date }}</td>
+          <td>
+            <div class="action-group">
+              <a href="/patient/{{ p.id }}" class="btn btn-sm btn-outline"><i data-lucide="eye"></i> View</a>
+              <form method="POST" action="/patient/{{ p.id }}/delete" onsubmit="return confirm('Delete patient {{ p.name }}? This cannot be undone.')">
+                <button type="submit" class="btn btn-sm btn-danger"><i data-lucide="trash-2"></i></button>
+              </form>
+            </div>
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+  {% else %}
+  <div class="empty-state">
+    <i data-lucide="user-x" class="empty-icon"></i>
+    <p>No patients registered yet.</p>
+    <a href="/patient/new" class="btn btn-primary">Register First Patient</a>
+  </div>
+  {% endif %}
+</div>
+
+<script>
+  // Load stats from API
+  fetch('/api/stats').then(r => r.json()).then(d => {
+    document.getElementById('stat-total').textContent    = d.total;
+    document.getElementById('stat-ischemic').textContent = d.ischemic;
+    document.getElementById('stat-haemo').textContent    = d.haemorrhagic;
+    document.getElementById('stat-tia').textContent      = d.tia;
+    document.getElementById('stat-pending').textContent  = d.pending_interventions;
+  });
+
+  function filterPatients() {
+    const q = document.getElementById('search-input').value.toLowerCase();
+    document.querySelectorAll('.patient-row').forEach(row => {
+      const name = row.querySelector('.patient-link').textContent.toLowerCase();
+      row.style.display = name.includes(q) ? '' : 'none';
+    });
+  }
+</script>
+{% endblock %}

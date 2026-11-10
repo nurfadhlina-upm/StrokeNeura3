@@ -1,0 +1,381 @@
+{% extends "base.html" %}
+{% block title %}Hospital Intelligence — StrokeCare{% endblock %}
+{% block content %}
+
+<div class="page-header">
+  <div>
+    <h1 class="page-title">🏥 Hospital Intelligence</h1>
+    <p class="page-sub">AI-powered population analytics · AHA/ASA 2023 guidelines · Real-time insights</p>
+  </div>
+  <div class="action-group">
+    <button class="btn btn-outline" onclick="window.location.reload()"><i data-lucide="refresh-cw"></i> Refresh</button>
+    <a href="/" class="btn btn-outline"><i data-lucide="layout-dashboard"></i> Dashboard</a>
+  </div>
+</div>
+
+{% if d.empty %}
+<div class="card">
+  <div class="empty-state">
+    <i data-lucide="brain-circuit" class="empty-icon"></i>
+    <p>No patient data available yet. Register patients to unlock Hospital Intelligence.</p>
+    <a href="/patient/new" class="btn btn-primary">Register First Patient</a>
+  </div>
+</div>
+{% else %}
+
+<!-- ══ CRITICAL ALERTS ═══════════════════════════════════════════════════ -->
+{% if d.alerts %}
+<div class="intel-section-title"><i data-lucide="bell-ring"></i> Critical Alerts <span class="badge badge-red">{{ d.alerts|length }}</span></div>
+<div class="alerts-list">
+  {% for alert in d.alerts %}
+  <div class="alert-item alert-{{ alert.level }}">
+    <span class="alert-icon">{{ alert.icon }}</span>
+    <div class="alert-body">
+      <span class="alert-patient"><a href="/patient/{{ alert.patient_id }}">{{ alert.patient_name }}</a></span>
+      <span class="alert-msg">{{ alert.message }}</span>
+    </div>
+    <a href="/patient/{{ alert.patient_id }}" class="btn btn-sm btn-outline">View →</a>
+  </div>
+  {% endfor %}
+</div>
+{% endif %}
+
+<!-- ══ OVERVIEW CARDS ════════════════════════════════════════════════════ -->
+<div class="intel-section-title"><i data-lucide="bar-chart-3"></i> Population Overview</div>
+<div class="intel-stats-grid">
+  <div class="intel-stat">
+    <div class="intel-stat-top">
+      <span class="intel-stat-label">Total Patients</span>
+      <i data-lucide="users" class="intel-stat-icon text-blue"></i>
+    </div>
+    <div class="intel-stat-val text-blue">{{ d.total }}</div>
+  </div>
+  <div class="intel-stat">
+    <div class="intel-stat-top">
+      <span class="intel-stat-label">Average Age</span>
+      <i data-lucide="cake" class="intel-stat-icon text-indigo"></i>
+    </div>
+    <div class="intel-stat-val text-indigo">{{ d.avg_age }}</div>
+    <div class="intel-stat-sub">{{ d.male_count }}M · {{ d.female_count }}F</div>
+  </div>
+  <div class="intel-stat">
+    <div class="intel-stat-top">
+      <span class="intel-stat-label">Avg NIHSS Score</span>
+      <i data-lucide="brain" class="intel-stat-icon text-purple"></i>
+    </div>
+    <div class="intel-stat-val text-purple">{{ d.avg_nihss }}</div>
+    <div class="intel-stat-sub">/ 42 max</div>
+  </div>
+  <div class="intel-stat">
+    <div class="intel-stat-top">
+      <span class="intel-stat-label">tPA Eligible</span>
+      <i data-lucide="syringe" class="intel-stat-icon text-amber"></i>
+    </div>
+    <div class="intel-stat-val text-amber">{{ d.tpa_given }} / {{ d.tpa_eligible }}</div>
+    <div class="intel-stat-sub">given / eligible</div>
+  </div>
+  <div class="intel-stat">
+    <div class="intel-stat-top">
+      <span class="intel-stat-label">Urgent Actions</span>
+      <i data-lucide="alert-triangle" class="intel-stat-icon text-red"></i>
+    </div>
+    <div class="intel-stat-val text-red">{{ d.iv_urgent }}</div>
+    <div class="intel-stat-sub">pending interventions</div>
+  </div>
+  <div class="intel-stat">
+    <div class="intel-stat-top">
+      <span class="intel-stat-label">Very High Risk</span>
+      <i data-lucide="shield-alert" class="intel-stat-icon text-orange"></i>
+    </div>
+    <div class="intel-stat-val text-orange">{{ d.risk_dist['Very High'] }}</div>
+    <div class="intel-stat-sub">patients flagged</div>
+  </div>
+</div>
+
+<!-- ══ CHARTS ROW ════════════════════════════════════════════════════════ -->
+<div class="charts-row">
+
+  <!-- Stroke Type Donut -->
+  <div class="card chart-card">
+    <div class="card-header"><h2 class="card-title"><i data-lucide="pie-chart"></i> Stroke Type Distribution</h2></div>
+    <div class="chart-body">
+      <canvas id="strokeTypeChart"></canvas>
+      <div class="donut-legend">
+        {% for label, count in d.stroke_counts.items() %}{% if count > 0 %}
+        <div class="legend-item">
+          <span class="legend-dot legend-stroke-{{ loop.index }}"></span>
+          <span>{{ label }}</span>
+          <span class="legend-val">{{ count }}</span>
+        </div>
+        {% endif %}{% endfor %}
+      </div>
+    </div>
+  </div>
+
+  <!-- NIHSS Distribution Bar -->
+  <div class="card chart-card">
+    <div class="card-header"><h2 class="card-title"><i data-lucide="bar-chart-2"></i> NIHSS Severity Distribution</h2></div>
+    <div class="chart-body">
+      <canvas id="nihssChart"></canvas>
+    </div>
+  </div>
+
+  <!-- Risk Distribution -->
+  <div class="card chart-card">
+    <div class="card-header"><h2 class="card-title"><i data-lucide="gauge"></i> Recurrence Risk Stratification</h2></div>
+    <div class="chart-body">
+      <canvas id="riskChart"></canvas>
+      <div class="donut-legend">
+        {% for cat, cnt in d.risk_dist.items() %}
+        <div class="legend-item">
+          <span class="legend-dot legend-risk-{{ cat|lower|replace(' ','-') }}"></span>
+          <span>{{ cat }}</span>
+          <span class="legend-val">{{ cnt }}</span>
+        </div>
+        {% endfor %}
+      </div>
+    </div>
+  </div>
+
+</div>
+
+<!-- ══ RISK FACTOR PREVALENCE ════════════════════════════════════════════ -->
+<div class="charts-row">
+  <div class="card" style="flex:2">
+    <div class="card-header"><h2 class="card-title"><i data-lucide="heart-pulse"></i> Risk Factor Prevalence</h2></div>
+    <div class="rf-bars">
+      {% for rf in d.rf_prevalence %}
+      <div class="rf-row">
+        <span class="rf-label">{{ rf.label }}</span>
+        <div class="rf-bar-track">
+          <div class="rf-bar-fill" style="width: {{ rf.pct }}%" data-pct="{{ rf.pct }}"></div>
+        </div>
+        <span class="rf-count">{{ rf.count }}/{{ d.total }}</span>
+        <span class="rf-pct {% if rf.pct >= 70 %}rf-pct-high{% elif rf.pct >= 40 %}rf-pct-med{% endif %}">{{ rf.pct }}%</span>
+      </div>
+      {% endfor %}
+    </div>
+  </div>
+
+  <!-- Age distribution -->
+  <div class="card" style="flex:1">
+    <div class="card-header"><h2 class="card-title"><i data-lucide="users-2"></i> Age & Gender</h2></div>
+    <div class="age-grid">
+      {% for band, cnt in d.age_bands.items() %}
+      <div class="age-cell">
+        <div class="age-bar-wrap">
+          <div class="age-bar" style="height: {{ [cnt * 30, 120]|min }}px"></div>
+        </div>
+        <div class="age-band-label">{{ band }}</div>
+        <div class="age-band-cnt">{{ cnt }}</div>
+      </div>
+      {% endfor %}
+    </div>
+    <div class="gender-row">
+      <div class="gender-pill gender-male">♂ Male: {{ d.male_count }}</div>
+      <div class="gender-pill gender-female">♀ Female: {{ d.female_count }}</div>
+    </div>
+  </div>
+</div>
+
+<!-- ══ PATIENT RISK TABLE ════════════════════════════════════════════════ -->
+<div class="intel-section-title"><i data-lucide="list-ordered"></i> Patient Risk Stratification (Ranked by AI Score)</div>
+<div class="card">
+  <div class="table-wrapper">
+    <table class="data-table">
+      <thead>
+        <tr>
+          <th>Rank</th>
+          <th>Patient</th>
+          <th>Age/Gender</th>
+          <th>Stroke Type</th>
+          <th>NIHSS</th>
+          <th>AI Risk Score</th>
+          <th>Risk Level</th>
+          <th>tPA</th>
+          <th>Action</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for pr in d.patient_risks %}
+        <tr>
+          <td><span class="rank-badge {% if loop.index <= 3 %}rank-top{% endif %}">#{{ loop.index }}</span></td>
+          <td><a href="/patient/{{ pr.id }}" class="patient-link">{{ pr.name }}</a></td>
+          <td class="text-muted">{{ pr.age }} / {{ pr.gender }}</td>
+          <td>
+            <span class="badge {% if pr.stroke_type=='Ischemic' %}badge-blue{% elif 'morrhagic' in pr.stroke_type %}badge-red{% elif pr.stroke_type=='TIA' %}badge-amber{% else %}badge-grey{% endif %}">
+              {{ pr.stroke_type }}
+            </span>
+          </td>
+          <td>
+            {% if pr.nihss_score is not none %}
+            <span class="nihss-pill nihss-{% if pr.nihss_score <= 4 %}low{% elif pr.nihss_score <= 15 %}mod{% elif pr.nihss_score <= 20 %}high{% else %}severe{% endif %}">
+              {{ pr.nihss_score }}
+            </span>
+            {% else %}—{% endif %}
+          </td>
+          <td>
+            <div class="risk-score-cell">
+              <div class="risk-mini-bar-bg">
+                <div class="risk-mini-bar risk-mini-{{ pr.risk_color }}" style="width:{{ pr.risk_score }}%"></div>
+              </div>
+              <span class="risk-score-num">{{ pr.risk_score }}</span>
+            </div>
+          </td>
+          <td>
+            <span class="risk-level-pill risk-pill-{{ pr.risk_color }}">{{ pr.risk_category }}</span>
+          </td>
+          <td>
+            {% if pr.tpa_given %}<span class="badge badge-blue">Given</span>
+            {% elif pr.tpa_eligible %}<span class="badge badge-amber">Eligible</span>
+            {% else %}<span class="text-muted">—</span>{% endif %}
+          </td>
+          <td><a href="/patient/{{ pr.id }}" class="btn btn-sm btn-outline">View</a></td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+
+<!-- ══ AI POPULATION RECOMMENDATIONS ════════════════════════════════════ -->
+<div class="intel-section-title"><i data-lucide="sparkles"></i> AI Population Recommendations
+  <span class="badge badge-blue" style="font-size:11px;font-weight:500">{{ d.pop_recs|length }} insights</span>
+</div>
+
+<div class="pop-recs-grid">
+  {% for rec in d.pop_recs %}
+  <div class="pop-rec-card">
+    <div class="pop-rec-header">
+      <span class="pop-rec-icon">{{ rec.icon }}</span>
+      <div class="pop-rec-meta">
+        <span class="pop-rec-category">{{ rec.category }}</span>
+        <span class="priority-badge priority-{{ rec.priority|lower }}">{{ rec.priority }}</span>
+      </div>
+    </div>
+    <div class="pop-rec-title">{{ rec.title }}</div>
+    <div class="pop-rec-detail">{{ rec.detail }}</div>
+    <div class="pop-rec-evidence"><i data-lucide="book-open"></i> {{ rec.evidence }}</div>
+  </div>
+  {% endfor %}
+</div>
+
+<!-- ══ INTERVENTION SUMMARY ══════════════════════════════════════════════ -->
+<div class="intel-section-title"><i data-lucide="clipboard-list"></i> Intervention Status Summary</div>
+<div class="iv-status-row">
+  {% for status, cnt in d.iv_status_counts.items() %}
+  <div class="iv-status-card">
+    <div class="iv-status-num status-num-{{ status|lower|replace(' ','-') }}">{{ cnt }}</div>
+    <div class="iv-status-label">{{ status }}</div>
+  </div>
+  {% endfor %}
+</div>
+
+{% endif %}
+
+<!-- ════════════ Charts JS (Chart.js via inline data) ═══════════════════ -->
+<script>
+// Inject data as JSON
+const strokeData = {{ d.stroke_counts | tojson }};
+const nihssData  = {{ d.nihss_bands  | tojson }};
+const riskData   = {{ d.risk_dist    | tojson }};
+
+// ── Minimal canvas chart renderer (no external CDN) ──────────────────────
+function drawDonut(canvasId, labels, values, colors) {
+  const canvas = document.getElementById(canvasId);
+  if (!canvas) return;
+  const ctx = canvas.getContext('2d');
+  const W = canvas.width = 160, H = canvas.height = 160;
+  const cx = W/2, cy = H/2, R = 65, r = 35;
+  const total = values.reduce((a,b) => a+b, 0);
+  if (total === 0) return;
+  let startAngle = -Math.PI / 2;
+  values.forEach((v, i) => {
+    const slice = (v / total) * 2 * Math.PI;
+    ctx.beginPath();
+    ctx.moveTo(cx, cy);
+    ctx.arc(cx, cy, R, startAngle, startAngle + slice);
+    ctx.closePath();
+    ctx.fillStyle = colors[i];
+    ctx.fill();
+    startAngle += slice;
+  });
+  // Donut hole
+  ctx.beginPath();
+  ctx.arc(cx, cy, r, 0, 2*Math.PI);
+  ctx.fillStyle = '#ffffff';
+  ctx.fill();
+  // Centre total
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'middle';
+  ctx.font = 'bold 22px sans-serif';
+  ctx.fillStyle = '#0f172a';
+  ctx.fillText(total, cx, cy - 6);
+  ctx.font = '10px sans-serif';
+  ctx.fillStyle = '#64748b';
+  ctx.fillText('total', cx, cy + 12);
+}
+
+function drawBar(canvasId, labels, values, colors) {
+  const canvas = document.getElementById(canvasId);
+  if (!canvas) return;
+  const ctx = canvas.getContext('2d');
+  const W = canvas.width = canvas.parentElement.clientWidth - 40 || 320;
+  const H = canvas.height = 160;
+  const pad = { top: 10, right: 10, bottom: 36, left: 10 };
+  const plotW = W - pad.left - pad.right;
+  const plotH = H - pad.top - pad.bottom;
+  const max = Math.max(...values, 1);
+  const barW = plotW / labels.length;
+
+  labels.forEach((lbl, i) => {
+    const barH = (values[i] / max) * plotH;
+    const x = pad.left + i * barW + barW * 0.15;
+    const y = pad.top + plotH - barH;
+    // Bar
+    ctx.fillStyle = colors[i % colors.length];
+    ctx.beginPath();
+    ctx.roundRect(x, y, barW * 0.7, barH, [4,4,0,0]);
+    ctx.fill();
+    // Value
+    ctx.textAlign = 'center';
+    ctx.font = 'bold 13px sans-serif';
+    ctx.fillStyle = '#0f172a';
+    if (values[i] > 0) ctx.fillText(values[i], x + barW * 0.35, y - 4);
+    // Label
+    ctx.font = '10px sans-serif';
+    ctx.fillStyle = '#64748b';
+    const words = lbl.split(' ');
+    words.forEach((w, wi) => {
+      ctx.fillText(w, x + barW * 0.35, pad.top + plotH + 12 + wi * 11);
+    });
+  });
+}
+
+document.addEventListener('DOMContentLoaded', () => {
+  // Stroke type donut
+  const strokeLabels = Object.keys(strokeData).filter(k => strokeData[k] > 0);
+  const strokeVals   = strokeLabels.map(k => strokeData[k]);
+  drawDonut('strokeTypeChart', strokeLabels, strokeVals,
+    ['#3b82f6','#ef4444','#f59e0b','#94a3b8']);
+
+  // NIHSS bar
+  const nihssLabels = Object.keys(nihssData);
+  const nihssVals   = nihssLabels.map(k => nihssData[k]);
+  drawBar('nihssChart', nihssLabels, nihssVals,
+    ['#22c55e','#86efac','#f59e0b','#f97316','#ef4444']);
+
+  // Risk donut
+  const riskLabels = Object.keys(riskData);
+  const riskVals   = riskLabels.map(k => riskData[k]);
+  drawDonut('riskChart', riskLabels, riskVals,
+    ['#dc2626','#ea580c','#f59e0b','#22c55e']);
+
+  // Animate RF bars
+  document.querySelectorAll('.rf-bar-fill').forEach(el => {
+    el.style.width = '0%';
+    setTimeout(() => { el.style.width = el.dataset.pct + '%'; }, 100);
+  });
+});
+</script>
+{% endblock %}

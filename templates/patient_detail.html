@@ -1,0 +1,440 @@
+{% extends "base.html" %}
+{% block title %}{{ patient.name }} — StrokeCare{% endblock %}
+{% block content %}
+
+<div class="page-header">
+  <div>
+    <h1 class="page-title">{{ patient.name }}</h1>
+    <p class="page-sub">ID #{{ patient.id }} · {{ patient.age }} yrs · {{ patient.gender }} · Admitted: {{ patient.admission_date }}</p>
+  </div>
+  <div class="action-group">
+    <a href="/" class="btn btn-outline"><i data-lucide="arrow-left"></i> Back</a>
+    <form method="POST" action="/patient/{{ patient.id }}/delete"
+          onsubmit="return confirm('Permanently delete {{ patient.name }}?')">
+      <button type="submit" class="btn btn-danger"><i data-lucide="trash-2"></i> Delete Patient</button>
+    </form>
+  </div>
+</div>
+
+<!-- Tab navigation -->
+<div class="tabs-wrapper">
+  <div class="tabs" id="tabs">
+    <button class="tab active" onclick="showTab('overview')">Overview &amp; AI</button>
+    <button class="tab" onclick="showTab('diagnosis')">Diagnosis</button>
+    <button class="tab" onclick="showTab('risk')">Risk Factors</button>
+    <button class="tab" onclick="showTab('treatment')">Treatment Plan</button>
+    <button class="tab" onclick="showTab('interventions')">Interventions</button>
+  </div>
+</div>
+
+<!-- ══ TAB: Overview & AI ═══════════════════════════════════════════════ -->
+<div id="tab-overview" class="tab-panel">
+
+  {% if ai_risk %}
+  <div class="ai-banner">
+    <div class="ai-banner-icon">🤖</div>
+    <div class="ai-banner-text">
+      <strong>AI Risk Assessment Active</strong> — Based on latest diagnosis and risk factors.
+      Recommendations follow AHA/ASA 2023 guidelines.
+    </div>
+  </div>
+
+  <!-- Risk Score -->
+  <div class="card-row">
+    <div class="card risk-card">
+      <div class="card-header"><h2 class="card-title"><i data-lucide="gauge"></i> Stroke Recurrence Risk</h2></div>
+      <div class="risk-score-container">
+        <div class="risk-gauge">
+          <svg viewBox="0 0 200 110" class="gauge-svg">
+            <path d="M 20 100 A 80 80 0 0 1 180 100" fill="none" stroke="#e2e8f0" stroke-width="18" stroke-linecap="round"/>
+            <path id="gauge-arc" d="M 20 100 A 80 80 0 0 1 180 100" fill="none" stroke="#3b82f6"
+                  stroke-width="18" stroke-linecap="round"
+                  stroke-dasharray="{{ (ai_risk.score / 100 * 251.2)|round(1) }} 251.2"/>
+            <text x="100" y="100" text-anchor="middle" class="gauge-score">{{ ai_risk.score }}</text>
+            <text x="100" y="115" text-anchor="middle" class="gauge-label">/ 100</text>
+          </svg>
+        </div>
+        <div class="risk-details">
+          <div class="risk-category risk-{{ ai_risk.color }}">{{ ai_risk.category }} Risk</div>
+          <div class="risk-contributions">
+            {% for factor, pts in ai_risk.contributions.items() %}{% if pts > 0 %}
+            <div class="risk-factor-row">
+              <span class="risk-factor-name">{{ factor }}</span>
+              <div class="risk-bar-bg"><div class="risk-bar" style="width:{{ [pts * 2, 100]|min }}%"></div></div>
+              <span class="risk-pts">+{{ pts }}</span>
+            </div>
+            {% endif %}{% endfor %}
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- NIHSS -->
+    {% if nihss_info %}
+    <div class="card nihss-card">
+      <div class="card-header"><h2 class="card-title"><i data-lucide="brain"></i> NIHSS Severity</h2></div>
+      <div class="nihss-display">
+        <div class="nihss-score-big nihss-{{ nihss_info.color }}">
+          {{ diagnoses[0].nihss_score }}
+        </div>
+        <div class="nihss-label">{{ nihss_info.label }}</div>
+        <div class="nihss-prognosis">{{ nihss_info.prognosis }}</div>
+      </div>
+    </div>
+    {% endif %}
+  </div>
+
+  <!-- AI Recommendations -->
+  {% if ai_recs %}
+  <div class="card">
+    <div class="card-header">
+      <h2 class="card-title"><i data-lucide="sparkles"></i> AI-Generated Recommendations</h2>
+      <span class="badge badge-blue">AHA/ASA 2023</span>
+    </div>
+    <div class="rec-grid">
+      {% set sections = [
+        ('💊', 'Medications',    'medications',    'purple'),
+        ('🔬', 'Interventions',  'interventions',  'red'),
+        ('🏃', 'Rehabilitation', 'rehabilitation', 'green'),
+        ('🍎', 'Lifestyle',      'lifestyle',      'amber'),
+        ('📊', 'Monitoring',     'monitoring',     'blue')
+      ] %}
+      {% for icon, label, key, color in sections %}
+      {% if ai_recs[key] %}
+      <div class="rec-section rec-{{ color }}">
+        <div class="rec-section-title">{{ icon }} {{ label }}</div>
+        {% for item in ai_recs[key] %}
+        <div class="rec-item">
+          <div class="rec-item-top">
+            <span class="rec-name">{{ item.name }}</span>
+            <span class="priority-badge priority-{{ item.priority | lower | replace(' ','_') }}">{{ item.priority }}</span>
+          </div>
+          <div class="rec-reason">{{ item.reason }}</div>
+        </div>
+        {% endfor %}
+      </div>
+      {% endif %}
+      {% endfor %}
+    </div>
+  </div>
+  {% endif %}
+
+  {% else %}
+  <div class="card">
+    <div class="empty-state">
+      <i data-lucide="brain-circuit" class="empty-icon"></i>
+      <p>No AI insights yet. Add a <strong>Diagnosis</strong> and <strong>Risk Factors</strong> to unlock AI predictions and recommendations.</p>
+    </div>
+  </div>
+  {% endif %}
+
+  <!-- Patient info summary -->
+  <div class="card">
+    <div class="card-header"><h2 class="card-title"><i data-lucide="info"></i> Patient Information</h2></div>
+    <div class="info-grid">
+      <div class="info-item"><span class="info-label">IC / Passport</span><span>{{ patient.ic_number or '—' }}</span></div>
+      <div class="info-item"><span class="info-label">Contact</span><span>{{ patient.contact or '—' }}</span></div>
+      <div class="info-item"><span class="info-label">Address</span><span>{{ patient.address or '—' }}</span></div>
+      <div class="info-item"><span class="info-label">Registered</span><span>{{ patient.created_at }}</span></div>
+    </div>
+  </div>
+</div>
+
+
+<!-- ══ TAB: Diagnosis ════════════════════════════════════════════════════ -->
+<div id="tab-diagnosis" class="tab-panel hidden">
+  <div class="card">
+    <div class="card-header">
+      <h2 class="card-title"><i data-lucide="stethoscope"></i> Add Diagnosis</h2>
+    </div>
+    <form method="POST" action="/patient/{{ patient.id }}/diagnosis/add" class="form-inline">
+      <div class="form-grid">
+        <div class="form-group">
+          <label>Stroke Type <span class="required">*</span></label>
+          <select name="stroke_type" required class="form-control">
+            <option value="">— Select —</option>
+            <option value="Ischemic">Ischemic</option>
+            <option value="Haemorrhagic">Haemorrhagic</option>
+            <option value="TIA">TIA (Transient Ischaemic Attack)</option>
+            <option value="Unknown">Unknown / Not Determined</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label>NIHSS Score (0–42) <span class="required">*</span></label>
+          <input type="number" name="nihss_score" min="0" max="42" required class="form-control" placeholder="e.g. 8"/>
+        </div>
+        <div class="form-group">
+          <label>Onset Time</label>
+          <input type="text" name="onset_time" class="form-control" placeholder="e.g. 2 hours ago, Unknown"/>
+        </div>
+        <div class="form-group">
+          <label>Affected Side</label>
+          <select name="affected_side" class="form-control">
+            <option value="">— Select —</option>
+            <option value="Left">Left</option>
+            <option value="Right">Right</option>
+            <option value="Bilateral">Bilateral</option>
+            <option value="N/A">Not Applicable</option>
+          </select>
+        </div>
+        <div class="form-group span-2">
+          <label>Symptoms</label>
+          <input type="text" name="symptoms" class="form-control" placeholder="e.g. hemiplegia, aphasia, facial droop…"/>
+        </div>
+        <div class="form-group">
+          <label>Imaging Result</label>
+          <input type="text" name="imaging_result" class="form-control" placeholder="e.g. CT: MCA infarct"/>
+        </div>
+        <div class="form-group">
+          <label>Notes</label>
+          <input type="text" name="notes" class="form-control" placeholder="Additional clinical notes…"/>
+        </div>
+      </div>
+      <div class="form-actions">
+        <button type="submit" class="btn btn-primary"><i data-lucide="save"></i> Save Diagnosis</button>
+      </div>
+    </form>
+  </div>
+
+  {% if diagnoses %}
+  <div class="card">
+    <div class="card-header"><h2 class="card-title">Diagnosis History</h2></div>
+    {% for d in diagnoses %}
+    <div class="history-item">
+      <div class="history-item-header">
+        <span class="badge {% if d.stroke_type=='Ischemic' %}badge-blue{% elif 'morrhagic' in d.stroke_type %}badge-red{% else %}badge-amber{% endif %}">{{ d.stroke_type }}</span>
+        <span class="text-muted">NIHSS: <strong>{{ d.nihss_score }}</strong></span>
+        <span class="text-muted">{{ d.diagnosed_at }}</span>
+      </div>
+      <div class="history-item-body">
+        {% if d.symptoms %}<p><strong>Symptoms:</strong> {{ d.symptoms }}</p>{% endif %}
+        {% if d.affected_side %}<p><strong>Affected Side:</strong> {{ d.affected_side }}</p>{% endif %}
+        {% if d.onset_time %}<p><strong>Onset:</strong> {{ d.onset_time }}</p>{% endif %}
+        {% if d.imaging_result %}<p><strong>Imaging:</strong> {{ d.imaging_result }}</p>{% endif %}
+        {% if d.notes %}<p><strong>Notes:</strong> {{ d.notes }}</p>{% endif %}
+      </div>
+    </div>
+    {% endfor %}
+  </div>
+  {% endif %}
+</div>
+
+
+<!-- ══ TAB: Risk Factors ═════════════════════════════════════════════════ -->
+<div id="tab-risk" class="tab-panel hidden">
+  <div class="card">
+    <div class="card-header"><h2 class="card-title"><i data-lucide="heart-pulse"></i> Risk Factor Assessment</h2></div>
+    <form method="POST" action="/patient/{{ patient.id }}/risk/add" class="form-inline">
+      <div class="form-grid">
+        <div class="form-group span-2">
+          <label class="section-label">Comorbidities</label>
+          <div class="checkbox-grid">
+            {% set rf_vals = risk_factors or {} %}
+            {% for field, label in [
+              ('hypertension','Hypertension'),('diabetes','Diabetes Mellitus'),
+              ('atrial_fib','Atrial Fibrillation'),('smoking','Current Smoker'),
+              ('obesity','Obesity (BMI≥30)'),('prev_stroke','Previous Stroke/TIA'),
+              ('heart_disease','Heart Disease'),('hyperlipidemia','Hyperlipidaemia')
+            ] %}
+            <label class="checkbox-label">
+              <input type="checkbox" name="{{ field }}"
+                {% if rf_vals and rf_vals[field] %}checked{% endif %}/>
+              {{ label }}
+            </label>
+            {% endfor %}
+          </div>
+        </div>
+
+        <div class="form-group"><label>Systolic BP (mmHg)</label>
+          <input type="number" name="bp_systolic" class="form-control" placeholder="120"
+            value="{{ risk_factors.bp_systolic if risk_factors and risk_factors.bp_systolic else '' }}"/></div>
+        <div class="form-group"><label>Diastolic BP (mmHg)</label>
+          <input type="number" name="bp_diastolic" class="form-control" placeholder="80"
+            value="{{ risk_factors.bp_diastolic if risk_factors and risk_factors.bp_diastolic else '' }}"/></div>
+        <div class="form-group"><label>Blood Glucose (mmol/L)</label>
+          <input type="number" step="0.1" name="blood_glucose" class="form-control" placeholder="5.0"
+            value="{{ risk_factors.blood_glucose if risk_factors and risk_factors.blood_glucose else '' }}"/></div>
+        <div class="form-group"><label>Total Cholesterol (mmol/L)</label>
+          <input type="number" step="0.1" name="cholesterol" class="form-control" placeholder="5.2"
+            value="{{ risk_factors.cholesterol if risk_factors and risk_factors.cholesterol else '' }}"/></div>
+        <div class="form-group"><label>BMI (kg/m²)</label>
+          <input type="number" step="0.1" name="bmi" class="form-control" placeholder="24.5"
+            value="{{ risk_factors.bmi if risk_factors and risk_factors.bmi else '' }}"/></div>
+      </div>
+      <div class="form-actions">
+        <button type="submit" class="btn btn-primary"><i data-lucide="save"></i> Update Risk Factors</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+
+<!-- ══ TAB: Treatment Plan ═══════════════════════════════════════════════ -->
+<div id="tab-treatment" class="tab-panel hidden">
+  <div class="card">
+    <div class="card-header"><h2 class="card-title"><i data-lucide="pill"></i> Add Treatment Plan</h2></div>
+    <form method="POST" action="/patient/{{ patient.id }}/treatment/add" class="form-inline">
+      <div class="form-grid">
+        <div class="form-group span-2">
+          <div class="checkbox-grid">
+            <label class="checkbox-label"><input type="checkbox" name="tpa_eligible"/> tPA Eligible</label>
+            <label class="checkbox-label"><input type="checkbox" name="tpa_given"/> tPA Administered</label>
+          </div>
+        </div>
+        <div class="form-group"><label>Anticoagulant</label>
+          <input type="text" name="anticoagulant" class="form-control" placeholder="e.g. Warfarin 5mg"/></div>
+        <div class="form-group"><label>Antiplatelet</label>
+          <input type="text" name="antiplatelet" class="form-control" placeholder="e.g. Aspirin 150mg"/></div>
+        <div class="form-group"><label>Statin</label>
+          <input type="text" name="statin" class="form-control" placeholder="e.g. Atorvastatin 40mg"/></div>
+        <div class="form-group"><label>Antihypertensive</label>
+          <input type="text" name="antihypertensive" class="form-control" placeholder="e.g. Ramipril 5mg"/></div>
+        <div class="form-group"><label>Other Medications</label>
+          <input type="text" name="other_meds" class="form-control" placeholder="e.g. Metformin 500mg"/></div>
+        <div class="form-group"><label>Surgical Intervention</label>
+          <input type="text" name="surgical_intervention" class="form-control" placeholder="e.g. Mechanical thrombectomy"/></div>
+        <div class="form-group"><label>Rehabilitation Type</label>
+          <select name="rehab_type" class="form-control">
+            <option value="">— Select —</option>
+            <option value="Physiotherapy">Physiotherapy</option>
+            <option value="Occupational Therapy">Occupational Therapy</option>
+            <option value="Speech Therapy">Speech Therapy</option>
+            <option value="Multidisciplinary">Multidisciplinary</option>
+            <option value="None">None</option>
+          </select>
+        </div>
+        <div class="form-group"><label>Diet Plan</label>
+          <input type="text" name="diet_plan" class="form-control" placeholder="e.g. DASH diet, low sodium"/></div>
+        <div class="form-group span-2"><label>Notes</label>
+          <textarea name="notes" rows="2" class="form-control" placeholder="Clinical notes…"></textarea></div>
+      </div>
+      <div class="form-actions">
+        <button type="submit" class="btn btn-primary"><i data-lucide="save"></i> Save Treatment Plan</button>
+      </div>
+    </form>
+  </div>
+
+  {% if treatments %}
+  <div class="card">
+    <div class="card-header"><h2 class="card-title">Treatment History</h2></div>
+    {% for t in treatments %}
+    <div class="history-item">
+      <div class="history-item-header">
+        {% if t.tpa_given %}<span class="badge badge-red">tPA Given</span>{% endif %}
+        {% if t.tpa_eligible and not t.tpa_given %}<span class="badge badge-amber">tPA Eligible</span>{% endif %}
+        <span class="text-muted">{{ t.created_at }}</span>
+      </div>
+      <div class="history-item-body">
+        {% if t.anticoagulant %}<p><strong>Anticoagulant:</strong> {{ t.anticoagulant }}</p>{% endif %}
+        {% if t.antiplatelet %}<p><strong>Antiplatelet:</strong> {{ t.antiplatelet }}</p>{% endif %}
+        {% if t.statin %}<p><strong>Statin:</strong> {{ t.statin }}</p>{% endif %}
+        {% if t.antihypertensive %}<p><strong>Antihypertensive:</strong> {{ t.antihypertensive }}</p>{% endif %}
+        {% if t.other_meds %}<p><strong>Other Meds:</strong> {{ t.other_meds }}</p>{% endif %}
+        {% if t.surgical_intervention %}<p><strong>Surgery:</strong> {{ t.surgical_intervention }}</p>{% endif %}
+        {% if t.rehab_type %}<p><strong>Rehab:</strong> {{ t.rehab_type }}</p>{% endif %}
+        {% if t.diet_plan %}<p><strong>Diet:</strong> {{ t.diet_plan }}</p>{% endif %}
+        {% if t.notes %}<p><strong>Notes:</strong> {{ t.notes }}</p>{% endif %}
+      </div>
+    </div>
+    {% endfor %}
+  </div>
+  {% endif %}
+</div>
+
+
+<!-- ══ TAB: Interventions ════════════════════════════════════════════════ -->
+<div id="tab-interventions" class="tab-panel hidden">
+  <div class="card">
+    <div class="card-header"><h2 class="card-title"><i data-lucide="clipboard-check"></i> Schedule Intervention</h2></div>
+    <form method="POST" action="/patient/{{ patient.id }}/intervention/add" class="form-inline">
+      <div class="form-grid">
+        <div class="form-group">
+          <label>Intervention Type <span class="required">*</span></label>
+          <select name="intervention_type" required class="form-control">
+            <option value="">— Select —</option>
+            <option value="Physiotherapy">Physiotherapy</option>
+            <option value="Occupational Therapy">Occupational Therapy</option>
+            <option value="Speech Therapy">Speech Therapy</option>
+            <option value="Swallowing Assessment">Swallowing Assessment</option>
+            <option value="Psychological Support">Psychological Support</option>
+            <option value="Medication Review">Medication Review</option>
+            <option value="Imaging Follow-up">Imaging Follow-up</option>
+            <option value="Lab Tests">Lab Tests</option>
+            <option value="Surgical Procedure">Surgical Procedure</option>
+            <option value="Other">Other</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label>Priority</label>
+          <select name="priority" class="form-control">
+            <option value="URGENT">URGENT</option>
+            <option value="High">High</option>
+            <option value="Medium" selected>Medium</option>
+            <option value="Low">Low</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label>Status</label>
+          <select name="status" class="form-control">
+            <option value="Pending" selected>Pending</option>
+            <option value="In Progress">In Progress</option>
+            <option value="Completed">Completed</option>
+            <option value="Cancelled">Cancelled</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label>Scheduled Date</label>
+          <input type="date" name="scheduled_date" class="form-control"/>
+        </div>
+        <div class="form-group">
+          <label>Performed By</label>
+          <input type="text" name="performed_by" class="form-control" placeholder="e.g. Dr. Sarah Lee"/>
+        </div>
+        <div class="form-group span-2">
+          <label>Description</label>
+          <input type="text" name="description" class="form-control" placeholder="Details of the intervention…"/>
+        </div>
+      </div>
+      <div class="form-actions">
+        <button type="submit" class="btn btn-primary"><i data-lucide="plus"></i> Schedule</button>
+      </div>
+    </form>
+  </div>
+
+  {% if interventions %}
+  <div class="card">
+    <div class="card-header"><h2 class="card-title">Intervention List</h2></div>
+    <div class="intervention-list">
+      {% for i in interventions %}
+      <div class="intervention-item priority-border-{{ i.priority | lower | replace(' ','_') }}">
+        <div class="intervention-header">
+          <strong>{{ i.intervention_type }}</strong>
+          <span class="priority-badge priority-{{ i.priority | lower | replace(' ','_') }}">{{ i.priority }}</span>
+          <span class="status-badge status-{{ i.status | lower | replace(' ','-') }}">{{ i.status }}</span>
+          <form method="POST" action="/patient/{{ patient.id }}/intervention/{{ i.id }}/delete"
+                onsubmit="return confirm('Remove this intervention?')" style="margin-left:auto">
+            <button type="submit" class="btn btn-sm btn-danger"><i data-lucide="trash-2"></i></button>
+          </form>
+        </div>
+        {% if i.description %}<p class="intervention-desc">{{ i.description }}</p>{% endif %}
+        <div class="intervention-meta">
+          {% if i.scheduled_date %}<span>📅 {{ i.scheduled_date }}</span>{% endif %}
+          {% if i.performed_by %}<span>👤 {{ i.performed_by }}</span>{% endif %}
+          <span class="text-muted">Added: {{ i.created_at }}</span>
+        </div>
+      </div>
+      {% endfor %}
+    </div>
+  </div>
+  {% endif %}
+</div>
+
+<script>
+  function showTab(name) {
+    document.querySelectorAll('.tab-panel').forEach(p => p.classList.add('hidden'));
+    document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+    document.getElementById('tab-' + name).classList.remove('hidden');
+    event.currentTarget.classList.add('active');
+  }
+</script>
+{% endblock %}

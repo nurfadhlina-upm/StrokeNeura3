@@ -1,0 +1,65 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>{% block title %}StrokeCare — Patient Management{% endblock %}</title>
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}"/>
+  <!-- Lucide icons via CDN (SVG, no external font) -->
+  <script src="https://unpkg.com/lucide@latest/dist/umd/lucide.js" defer></script>
+  <script src="{{ url_for('static', filename='js/app.js') }}" defer></script>
+</head>
+<body>
+
+<!-- ══ Sidebar ══════════════════════════════════════════════════════════ -->
+<aside class="sidebar">
+  <div class="sidebar-header">
+    <span class="sidebar-logo">🧠</span>
+    <div>
+      <div class="sidebar-title">StrokeCare</div>
+      <div class="sidebar-sub">AI Patient Management</div>
+    </div>
+  </div>
+  <nav class="sidebar-nav">
+    <a href="/" class="nav-item {% if request.endpoint=='index' %}active{% endif %}">
+      <i data-lucide="layout-dashboard"></i> Dashboard
+    </a>
+    <a href="/patient/new" class="nav-item {% if request.endpoint=='new_patient' %}active{% endif %}">
+      <i data-lucide="user-plus"></i> New Patient
+    </a>
+    <div class="nav-divider"></div>
+    <a href="/intelligence" class="nav-item nav-item-special {% if request.endpoint=='hospital_intelligence' %}active{% endif %}">
+      <i data-lucide="brain-circuit"></i> Hospital Intelligence
+    </a>
+  </nav>
+  <div class="sidebar-footer">
+    <div class="sidebar-info-item"><i data-lucide="shield-check"></i> AHA/ASA 2023 Guidelines</div>
+    <div class="sidebar-info-item"><i data-lucide="cpu"></i> AI-Assisted Decision Support</div>
+  </div>
+</aside>
+
+<!-- ══ Main ═════════════════════════════════════════════════════════════ -->
+<main class="main-content">
+
+  <!-- Flash messages -->
+  {% with messages = get_flashed_messages(with_categories=true) %}
+  {% if messages %}
+  <div class="flash-container">
+    {% for category, message in messages %}
+    <div class="flash flash-{{ category }}">
+      {% if category == 'success' %}<i data-lucide="check-circle-2"></i>
+      {% elif category == 'error' %}<i data-lucide="x-circle"></i>
+      {% else %}<i data-lucide="info"></i>{% endif %}
+      {{ message }}
+      <button class="flash-close" onclick="this.parentElement.remove()">×</button>
+    </div>
+    {% endfor %}
+  </div>
+  {% endif %}
+  {% endwith %}
+
+  {% block content %}{% endblock %}
+</main>
+
+</body>
+</html>
