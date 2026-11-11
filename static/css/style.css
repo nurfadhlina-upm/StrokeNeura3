@@ -586,20 +586,22 @@ canvas { max-width: 100%; }
 .sidebar-toggle {
   position: fixed;
   top: 12px;
-  left: 232px;
+  left: 220px;
   z-index: 1100;
-  background: #1e293b;
+  background: rgba(255,255,255,.15);
   color: #fff;
   border: none;
   border-radius: 8px;
   font-size: 1.2rem;
   padding: 6px 10px;
   cursor: pointer;
-  transition: left 0.3s ease;
+  transition: left 0.3s ease, background 0.3s ease, color 0.3s ease;
 }
 
 .sidebar-toggle.at-edge {
   left: 12px;
+  background: #1e293b;
+  color: #fff;
 }
 
 .sidebar {
@@ -611,10 +613,11 @@ canvas { max-width: 100%; }
 }
 
 .main-content {
-  transition: margin-left 0.3s ease;
+  transition: margin-left 0.3s ease, padding-left 0.3s ease;
 }
 
 .main-content.expanded {
   margin-left: 0 !important;
   max-width: 100vw;
+  padding-left: 48px;
 }
