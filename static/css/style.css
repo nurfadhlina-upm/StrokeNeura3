@@ -598,6 +598,10 @@ canvas { max-width: 100%; }
   transition: left 0.3s ease;
 }
 
+.sidebar-toggle.at-edge {
+  left: 12px;
+}
+
 .sidebar {
   transition: transform 0.3s ease;
 }
@@ -606,14 +610,10 @@ canvas { max-width: 100%; }
   transform: translateX(-100%);
 }
 
-.sidebar.closed ~ .main-content {
-  margin-left: 0;
-}
-
-.sidebar.closed ~ .sidebar-toggle {
-  left: 12px;
-}
-
 .main-content {
   transition: margin-left 0.3s ease;
+}
+
+.sidebar.closed ~ .main-content {
+  margin-left: 0;
 }
