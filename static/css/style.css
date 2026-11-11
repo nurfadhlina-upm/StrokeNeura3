@@ -588,12 +588,11 @@ canvas { max-width: 100%; }
   top: 12px;
   left: 12px;
   z-index: 1100;
-  background: #1e293b;
-  color: #fff;
+  background: transparent;
+  color: #1e293b;
   border: none;
-  border-radius: 8px;
-  font-size: 1.4rem;
-  padding: 8px 12px;
+  font-size: 1.2rem;
+  padding: 4px 8px;
   cursor: pointer;
 }
 
