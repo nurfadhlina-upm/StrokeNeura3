@@ -604,11 +604,8 @@ canvas { max-width: 100%; }
 
 .sidebar-toggle.at-edge {
   left: 8px;
-  top: 8px;
   background: #1e293b;
   color: #fff;
-  font-size: 1.2rem;
-  padding: 6px 10px;
 }
 
 .sidebar-toggle.at-edge:hover {
