@@ -876,9 +876,12 @@ def api_intelligence():
     return jsonify(data)
 
 
+# Ensure tables exist on import (needed for Render/Gunicorn)
+init_db()
+
 if __name__ == "__main__":
-    init_db()
+    port = int(os.environ.get("PORT", 5050))
     print(f"\n✅ Stroke Patient Management System started")
     print(f"📂 Database: {DB_PATH}")
-    print(f"🌐 URL: http://localhost:5050\n")
-    app.run(host="127.0.0.1", port=5050, debug=False)
+    print(f"🌐 URL: http://localhost:{port}\n")
+    app.run(host="0.0.0.0", port=port, debug=False)
