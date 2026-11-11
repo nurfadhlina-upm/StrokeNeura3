@@ -614,6 +614,7 @@ canvas { max-width: 100%; }
   transition: margin-left 0.3s ease;
 }
 
-.sidebar.closed ~ .main-content {
-  margin-left: 0;
+.main-content.expanded {
+  margin-left: 0 !important;
+  max-width: 100vw;
 }
