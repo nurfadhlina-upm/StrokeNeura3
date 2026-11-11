@@ -585,7 +585,7 @@ canvas { max-width: 100%; }
 /* ── Collapsible sidebar ─────────────────────────────────────── */
 .sidebar-toggle {
   position: fixed;
-  top: 28px;
+  top: 24.5px;
   left: 216px;
   z-index: 1100;
   background: rgba(255,255,255,.15);
