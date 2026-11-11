@@ -10,7 +10,7 @@
   <script src="{{ url_for('static', filename='js/app.js') }}" defer></script>
 </head>
 <body>
-<button class="sidebar-toggle" onclick="let s=document.querySelector('.sidebar');s.classList.toggle('open');this.textContent=s.classList.contains('open')?'‹':'›'">›</button>
+<button class="sidebar-toggle" onclick="document.querySelector('.sidebar').classList.toggle('closed')">☰</button>
 <!-- ══ Sidebar ══════════════════════════════════════════════════════════ -->
 <aside class="sidebar">
   <div class="sidebar-header">
